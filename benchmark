@@ -9,8 +9,6 @@ import faiss
 
 faiss.omp_set_num_threads(1)
 
-# import pdb; pdb.set_trace()
-
 
 
 def load_embeddings():
@@ -18,8 +16,6 @@ def load_embeddings():
     print(df.head())
     print(df.columns)
     
-    print(f"Number of rows: {len(df)}")
-
     questions = df['question'].tolist()
     answers = df['answer'].tolist()
 
@@ -37,7 +33,6 @@ def float_to_int8(fp32_vectors):
     return int8_quantized
 
 def float_to_binary(fp32_vectors):
-    # Ensure binary vectors are a multiple of 8 bits
     binary_vectors = (fp32_vectors > 0).astype(np.uint8)
     return binary_vectors
 
@@ -46,7 +41,6 @@ def create_faiss_index(vectors, index_type):
     dimension = vectors.shape[1]
 
     if index_type == 'int8':
-        #IVF with Product Quantization for INT8 precision
         quantizer = faiss.IndexFlatL2(dimension)  
         index = faiss.IndexIVFPQ(quantizer, dimension, 500, 8, 8)  
         vectors = vectors.astype(np.float32)  
@@ -64,8 +58,6 @@ def benchmark_index(index, query_vectors, k=5):
     if isinstance(index, faiss.IndexBinaryHNSW):
         query_vectors = float_to_binary(query_vectors)
 
-    # print(f"Query vectors shape: {query_vectors.shape}")
-    # print(f"Indexed vectors dimension (code_size): {index.code_size}")
     start_time = time.time()
     _, indices = index.search(query_vectors, k)
     latency = time.time() - start_time
@@ -120,7 +112,7 @@ def main():
 #
     binary_index = create_faiss_index(answer_embeddings, 'binary')
 
-    query_vectors_fp32 = question_embeddings[:10]  # for ground truth
+    query_vectors_fp32 = question_embeddings[:10] 
     binary_queries = (query_vectors_fp32 > 0).astype(np.uint8) 
     int8_queries = float_to_int8(query_vectors_fp32)
 
@@ -130,23 +122,20 @@ def main():
     int8_latency, int8_indices = benchmark_index(int8_index, int8_queries)
     print(f"INT8 Latency: {int8_latency:.4f} seconds")
 
-    # Benchmark Binary index
     binary_latency, binary_indices = benchmark_index(binary_index, binary_queries)
     print(f"Binary Latency: {binary_latency:.4f} seconds")
 
-    # Compute recall for both
     int8_recall = compute_recall(int8_indices, ground_truth_indices, k=5)
     binary_recall = compute_recall(binary_indices, ground_truth_indices, k=5)
 
     print(f"INT8 Recall: {int8_recall:.4f}")
     print(f"Binary Recall: {binary_recall:.4f}")
 
-    # # Plot results
-    # precisions = ['INT8', 'Binary']
-    # latencies = [int8_latency, binary_latency]
-    # recalls = [int8_recall, binary_recall]
+    precisions = ['INT8', 'Binary']
+    latencies = [int8_latency, binary_latency]
+    recalls = [int8_recall, binary_recall]
 
-    # plot_results(precisions, latencies, recalls)
+    plot_results(precisions, latencies, recalls)
 
 if __name__ == "__main__":
     main()

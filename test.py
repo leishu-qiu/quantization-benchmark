@@ -9,18 +9,13 @@ from transformers import AutoTokenizer
 
 
 faiss.omp_set_num_threads(1)
-# tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-# tokens = tokenizer('your input text', clean_up_tokenization_spaces=False)
-
 
 def load_embeddings():
     df = pd.read_parquet("hf://datasets/rachid16/rag_finetuning_data/data/train-00000-of-00001.parquet")
     # print(df.head())
 
-    # questions = df['question'].tolist()
-    # answers = df['answer'].tolist()
-    questions = df['question'][:10000].tolist()
-    answers = df['answer'][:10000].tolist()
+    questions = df['question'][:1000].tolist()
+    answers = df['answer'][:1000].tolist()
 
     model = SentenceTransformer('all-MiniLM-L6-v2')
 
@@ -38,14 +33,12 @@ def load_embeddings():
 #     normalized = np.clip(fp32_vectors, 0, 1) * int8_max
 #     int8_quantized = np.round(normalized).astype(np.uint8)
 #     return int8_quantized
-import numpy as np
 
 def float_to_int8(fp32_vectors):
-    int8_max = 127  # Max value for signed 8-bit integer
-    int8_min = -128  # Min value for signed 8-bit integer
+    int8_max = 127  
+    int8_min = -128 
     # Normalize the input vectors (assumed to be in the range 0 to 1) to the range -128 to 127
     normalized = np.clip(fp32_vectors, 0, 1) * (int8_max - int8_min) + int8_min
-    # Round and cast to int8
     int8_quantized = np.round(normalized).astype(np.int8)
     return int8_quantized
 
@@ -107,12 +100,11 @@ def create_faiss_index(vectors, index_type):
 
 def benchmark_index(index, query_vectors, k=5, precision='fp32'):
     if isinstance(index, faiss.IndexBinaryHNSW):
-        # Convert query vectors to binary for a binary index
         query_vectors = float_to_binary(query_vectors)
     elif isinstance(index, faiss.IndexHNSWFlat):
-        if precision == 'int8':  # Check if INT8
+        if precision == 'int8':  
             query_vectors = float_to_int8(query_vectors).astype(np.float32)
-        elif precision == 'int4':  # Check if INT4
+        elif precision == 'int4':
             query_vectors = float_to_int4(query_vectors).astype(np.float32)
         else:
             query_vectors = query_vectors.astype(np.float32)  
